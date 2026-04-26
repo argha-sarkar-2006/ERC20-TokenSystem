@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SimpleDEX</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #0a0a0f;
+            --surface: #111118;
+            --surface2: #1a1a24;
+            --border: rgba(255, 255, 255, 0.07);
+            --border2: rgba(255, 255, 255, 0.12);
+            --accent: #6e5ad1;
+            --accent2: #FF6B6B;
+            --accent3: #00D9A3;
+            --text: #F0EEF8;
+            --muted: #7A7890;
+            --mono: 'Space Mono', monospace;
+            --sans: 'Syne', sans-serif;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* background grid */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(123, 97, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(123, 97, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .glow-orb {
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            filter: blur(120px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .orb1 {
+            top: -200px;
+            left: -100px;
+            background: rgba(123, 97, 255, 0.12);
+        }
+
+        .orb2 {
+            bottom: -200px;
+            right: -100px;
+            background: rgba(0, 217, 163, 0.08);
+        }
+
+        .wrap {
+            position: relative;
+            z-index: 1;
+            max-width: 520px;
+            margin: 0 auto;
+            padding: 24px 16px 80px;
+        }
+
+        /* HEADER */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .logo span {
+            color: var(--accent);
+        }
+
+        #connectBtn {
+            font-family: var(--mono);
+            font-size: 11px;
+            padding: 8px 16px;
+            border-radius: 999px;
+            border: 1px solid var(--border2);
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 0.5px;
+        }
+
+        #connectBtn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        #connectBtn.connected {
+            border-color: var(--accent3);
+            color: var(--accent3);
+        }
+
+        /* WALLET INFO */
+        #walletInfo {
+            display: none;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 14px 18px;
+            margin-bottom: 20px;
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        #walletInfo.show {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .wallet-addr {
+            color: var(--text);
+        }
+
+        /* TABS */
+        .tabs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 4px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            font-family: var(--sans);
+            font-size: 13px;
+            font-weight: 600;
+            padding: 10px;
+            border-radius: 10px;
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background: var(--surface2);
+            color: var(--text);
+            border: 1px solid var(--border2);
+        }
+
+        /* CARD */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 22px;
+            margin-bottom: 12px;
+            transition: border-color 0.2s;
+        }
+
+        .card:hover {
+            border-color: var(--border2);
+        }
+
+        .card-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin-bottom: 14px;
+        }
+
+        /* INPUT ROW */
+        .input-row {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .input-group {
+            position: relative;
+        }
+
+        .input-group label {
+            font-size: 11px;
+            color: var(--muted);
+            font-family: var(--mono);
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .input-group input {
+            width: 100%;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 90px 14px 16px;
+            font-family: var(--mono);
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-group input:focus {
+            border-color: var(--accent);
+        }
+
+        .input-group input::placeholder {
+            color: var(--muted);
+            font-weight: 400;
+        }
+
+        .token-badge {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            padding: 5px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border2);
+            color: var(--text);
+            background: var(--surface);
+            pointer-events: none;
+        }
+
+        .badge-a {
+            border-color: rgba(123, 97, 255, 0.5);
+            color: var(--accent);
+            background: rgba(123, 97, 255, 0.08);
+        }
+
+        .badge-b {
+            border-color: rgba(255, 107, 107, 0.5);
+            color: var(--accent2);
+            background: rgba(255, 107, 107, 0.08);
+        }
+
+        .badge-lp {
+            border-color: rgba(0, 217, 163, 0.5);
+            color: var(--accent3);
+            background: rgba(0, 217, 163, 0.08);
+        }
+
+        /* SWAP ARROW */
+        .swap-arrow-wrap {
+            display: flex;
+            justify-content: center;
+            margin: 4px 0;
+        }
+
+        .swap-arrow {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+            color: var(--muted);
+        }
+
+        .swap-arrow:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            transform: rotate(180deg);
+        }
+
+        /* POOL STATS */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .stat-box {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 14px;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: var(--muted);
+            font-family: var(--mono);
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .stat-val {
+            font-size: 16px;
+            font-weight: 700;
+            font-family: var(--mono);
+            color: var(--text);
+        }
+
+        .stat-val.accent-a {
+            color: var(--accent);
+        }
+
+        .stat-val.accent-b {
+            color: var(--accent2);
+        }
+
+        .stat-val.accent-g {
+            color: var(--accent3);
+        }
+
+        /* ESTIMATE PILL */
+        .estimate {
+            background: rgba(0, 217, 163, 0.06);
+            border: 1px solid rgba(0, 217, 163, 0.15);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--accent3);
+            margin-bottom: 12px;
+            display: none;
+        }
+
+        .estimate.show {
+            display: block;
+        }
+
+        /* BUTTON */
+        .action-btn {
+            width: 100%;
+            padding: 16px;
+            border-radius: 14px;
+            border: none;
+            font-family: var(--sans);
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 0.3px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .action-btn::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0);
+            transition: background 0.2s;
+        }
+
+        .action-btn:hover::after {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .action-btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-swap {
+            background: linear-gradient(135deg, var(--accent), #9B85FF);
+            color: white;
+        }
+
+        .btn-add {
+            background: linear-gradient(135deg, var(--accent3), #00B386);
+            color: #0a0a0f;
+        }
+
+        .btn-remove {
+            background: linear-gradient(135deg, var(--accent2), #FF8E53);
+            color: white;
+        }
+
+        /* TOAST */
+        #toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 12px;
+            padding: 12px 20px;
+            font-family: var(--mono);
+            font-size: 12px;
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 100;
+            white-space: nowrap;
+            max-width: 90vw;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        #toast.success {
+            border-color: rgba(0, 217, 163, 0.4);
+            color: var(--accent3);
+        }
+
+        #toast.error {
+            border-color: rgba(255, 107, 107, 0.4);
+            color: var(--accent2);
+        }
+
+        #toast.info {
+            border-color: rgba(123, 97, 255, 0.4);
+            color: var(--accent);
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 14px 0;
+        }
+
+        .tx-link {
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .tx-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="glow-orb orb1"></div>
+    <div class="glow-orb orb2"></div>
+
+    <div class="wrap">
+
+        <header>
+            <div class="logo">Simple<span>DEX</span></div>
+            <button id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
+        </header>
+
+        <div id="walletInfo">
+            <span>Wallet: <span class="wallet-addr" id="walletAddr">—</span></span>
+            <span>ETH: <span id="ethBal">—</span></span>
+            <span style="color:var(--accent)">TKA: <span id="tkabal">—</span></span>
+            <span style="color:var(--accent2)">TKB: <span id="tkbbal">—</span></span>
+        </div>
+
+        <!-- POOL STATS -->
+        <div class="card" style="margin-bottom:20px;">
+            <div class="card-label">Pool reserves</div>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-label">Reserve TKA</div>
+                    <div class="stat-val accent-a" id="resA">—</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Reserve TKB</div>
+                    <div class="stat-val accent-b" id="resB">—</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Your LP tokens</div>
+                    <div class="stat-val accent-g" id="lpBal">—</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Total LP supply</div>
+                    <div class="stat-val" id="totalLp">—</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TABS -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('swap',this)">Swap</button>
+            <button class="tab" onclick="switchTab('add',this)">Add Liquidity</button>
+            <button class="tab" onclick="switchTab('remove',this)">Remove</button>
+        </div>
+
+        <!-- SWAP SECTION -->
+        <div id="swapSection" class="section active">
+            <div class="card">
+                <div class="card-label">Token in</div>
+                <div class="input-group">
+                    <label>Amount to swap</label>
+                    <input type="number" id="swapAmountIn" placeholder="0.0" oninput="estimateSwap()">
+                    <span class="token-badge badge-a" id="swapTokenInBadge">TKA</span>
+                </div>
+            </div>
+
+            <div class="swap-arrow-wrap">
+                <div class="swap-arrow" onclick="flipSwap()" title="Flip direction">⇅</div>
+            </div>
+
+            <div class="card">
+                <div class="card-label">Token out (estimated)</div>
+                <div class="input-group">
+                    <input type="number" id="swapAmountOut" placeholder="0.0" readonly>
+                    <span class="token-badge badge-b" id="swapTokenOutBadge">TKB</span>
+                </div>
+            </div>
+
+            <div class="estimate" id="swapEstimate"></div>
+
+            <button class="action-btn btn-swap" onclick="doSwap()">Swap Tokens</button>
+        </div>
+
+        <!-- ADD LIQUIDITY -->
+        <div id="addSection" class="section">
+            <div class="card">
+                <div class="card-label">Deposit amounts</div>
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>Token A amount</label>
+                        <input type="number" id="addAmountA" placeholder="0.0">
+                        <span class="token-badge badge-a">TKA</span>
+                    </div>
+                    <div class="input-group">
+                        <label>Token B amount</label>
+                        <input type="number" id="addAmountB" placeholder="0.0">
+                        <span class="token-badge badge-b">TKB</span>
+                    </div>
+                </div>
+            </div>
+            <button class="action-btn btn-add" onclick="doAddLiquidity()">Add Liquidity</button>
+        </div>
+
+        <!-- REMOVE LIQUIDITY -->
+        <div id="removeSection" class="section">
+            <div class="card">
+                <div class="card-label">Burn LP tokens</div>
+                <div class="input-group">
+                    <label>LP token amount to remove</label>
+                    <input type="number" id="removeAmount" placeholder="0.0">
+                    <span class="token-badge badge-lp">LP</span>
+                </div>
+            </div>
+            <button class="action-btn btn-remove" onclick="doRemoveLiquidity()">Remove Liquidity</button>
+        </div>
+
+    </div>
+
+    <div id="toast"></div>
+
+    <script>
+        // ── PASTE YOUR CONTRACT ADDRESSES HERE ──
+        const TOKENA_ADDRESS = "0xYourTokenAAddress";
+        const TOKENB_ADDRESS = "0xYourTokenBAddress";
+        const DEX_ADDRESS = "0xYourDEXAddress";
+
+        const ERC20_ABI = [
+            "function balanceOf(address) view returns (uint)",
+            "function approve(address,uint) returns (bool)",
+            "function allowance(address,address) view returns (uint)",
+            "function transfer(address,uint) returns (bool)"
+        ];
+
+        const DEX_ABI = [
+            "function swap(address,uint) external",
+            "function addLiquidity(uint,uint) external",
+            "function removeLiquidity(uint) external",
+            "function reserveA() view returns (uint)",
+            "function reserveB() view returns (uint)",
+            "function liquidity(address) view returns (uint)",
+            "function totalLiquidity() view returns (uint)"
+        ];
+
+        let provider, signer, tokenA, tokenB, dex, userAddr;
+        let swapDirection = true; // true = TKA→TKB, false = TKB→TKA
+
+        async function connectWallet() {
+            if (!window.ethereum) { showToast("MetaMask not found!", "error"); return; }
+            try {
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                await provider.send("eth_requestAccounts", []);
+                signer = provider.getSigner();
+                userAddr = await signer.getAddress();
+
+                tokenA = new ethers.Contract(TOKENA_ADDRESS, ERC20_ABI, signer);
+                tokenB = new ethers.Contract(TOKENB_ADDRESS, ERC20_ABI, signer);
+                dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);
+
+                document.getElementById("connectBtn").textContent =
+                    userAddr.slice(0, 6) + "..." + userAddr.slice(-4);
+                document.getElementById("connectBtn").classList.add("connected");
+                document.getElementById("walletInfo").classList.add("show");
+                document.getElementById("walletAddr").textContent =
+                    userAddr.slice(0, 6) + "..." + userAddr.slice(-4);
+
+                await refreshAll();
+                showToast("Wallet connected!", "success");
+            } catch (e) {
+                showToast("Connection failed: " + e.message, "error");
+            }
+        }
+
+        async function refreshAll() {
+            if (!signer) return;
+            try {
+                const [ethBal, tkaB, tkbB, rA, rB, lp, totalLp] = await Promise.all([
+                    provider.getBalance(userAddr),
+                    tokenA.balanceOf(userAddr),
+                    tokenB.balanceOf(userAddr),
+                    dex.reserveA(),
+                    dex.reserveB(),
+                    dex.liquidity(userAddr),
+                    dex.totalLiquidity()
+                ]);
+                const fmt = (v, d = 2) => parseFloat(ethers.utils.formatEther(v)).toFixed(d);
+                document.getElementById("ethBal").textContent = fmt(ethBal, 4) + " ETH";
+                document.getElementById("tkabal").textContent = fmt(tkaB);
+                document.getElementById("tkbbal").textContent = fmt(tkbB);
+                document.getElementById("resA").textContent = fmt(rA);
+                document.getElementById("resB").textContent = fmt(rB);
+                document.getElementById("lpBal").textContent = fmt(lp);
+                document.getElementById("totalLp").textContent = fmt(totalLp);
+            } catch (e) { console.error("Refresh error:", e); }
+        }
+
+        function estimateSwap() {
+            const amtIn = parseFloat(document.getElementById("swapAmountIn").value);
+            if (!amtIn || amtIn <= 0) {
+                document.getElementById("swapAmountOut").value = "";
+                document.getElementById("swapEstimate").classList.remove("show");
+                return;
+            }
+            const rA = parseFloat(document.getElementById("resA").textContent) || 0;
+            const rB = parseFloat(document.getElementById("resB").textContent) || 0;
+            if (rA === 0 || rB === 0) return;
+
+            const reserveIn = swapDirection ? rA : rB;
+            const reserveOut = swapDirection ? rB : rA;
+            const amtInFee = amtIn * 997;
+            const amtOut = (amtInFee * reserveOut) / (reserveIn * 1000 + amtInFee);
+            const fee = amtIn * 0.003;
+            const impact = Math.abs(((reserveOut - amtOut) / reserveOut - 1) * 100);
+
+            document.getElementById("swapAmountOut").value = amtOut.toFixed(4);
+            const est = document.getElementById("swapEstimate");
+            est.classList.add("show");
+            est.textContent = `Fee: ${fee.toFixed(4)} | Price impact: ${impact.toFixed(2)}% | Rate: 1 ${swapDirection ? 'TKA' : 'TKB'} ≈ ${(amtOut / amtIn).toFixed(4)} ${swapDirection ? 'TKB' : 'TKA'}`;
+        }
+
+        function flipSwap() {
+            swapDirection = !swapDirection;
+            document.getElementById("swapTokenInBadge").textContent = swapDirection ? "TKA" : "TKB";
+            document.getElementById("swapTokenInBadge").className = "token-badge " + (swapDirection ? "badge-a" : "badge-b");
+            document.getElementById("swapTokenOutBadge").textContent = swapDirection ? "TKB" : "TKA";
+            document.getElementById("swapTokenOutBadge").className = "token-badge " + (swapDirection ? "badge-b" : "badge-a");
+            document.getElementById("swapAmountIn").value = "";
+            document.getElementById("swapAmountOut").value = "";
+            document.getElementById("swapEstimate").classList.remove("show");
+        }
+
+        async function doSwap() {
+            if (!signer) { showToast("Connect wallet first", "error"); return; }
+            const amtIn = document.getElementById("swapAmountIn").value;
+            if (!amtIn || amtIn <= 0) { showToast("Enter an amount", "error"); return; }
+            try {
+                const tokenIn = swapDirection ? TOKENA_ADDRESS : TOKENB_ADDRESS;
+                const tokenContract = swapDirection ? tokenA : tokenB;
+                const amount = ethers.utils.parseEther(amtIn);
+
+                showToast("Approving token...", "info");
+                const approveTx = await tokenContract.approve(DEX_ADDRESS, amount);
+                await approveTx.wait();
+
+                showToast("Swapping...", "info");
+                const tx = await dex.swap(tokenIn, amount);
+                await tx.wait();
+
+                showToast("Swap successful! TX: " + tx.hash.slice(0, 10) + "...", "success");
+                document.getElementById("swapAmountIn").value = "";
+                document.getElementById("swapAmountOut").value = "";
+                document.getElementById("swapEstimate").classList.remove("show");
+                await refreshAll();
+            } catch (e) {
+                showToast("Error: " + (e.reason || e.message).slice(0, 60), "error");
+            }
+        }
+
+        async function doAddLiquidity() {
+            if (!signer) { showToast("Connect wallet first", "error"); return; }
+            const amtA = document.getElementById("addAmountA").value;
+            const amtB = document.getElementById("addAmountB").value;
+            if (!amtA || !amtB || amtA <= 0 || amtB <= 0) { showToast("Enter both amounts", "error"); return; }
+            try {
+                const a = ethers.utils.parseEther(amtA);
+                const b = ethers.utils.parseEther(amtB);
+
+                showToast("Approving TKA...", "info");
+                await (await tokenA.approve(DEX_ADDRESS, a)).wait();
+                showToast("Approving TKB...", "info");
+                await (await tokenB.approve(DEX_ADDRESS, b)).wait();
+                showToast("Adding liquidity...", "info");
+                const tx = await dex.addLiquidity(a, b);
+                await tx.wait();
+
+                showToast("Liquidity added! TX: " + tx.hash.slice(0, 10) + "...", "success");
+                document.getElementById("addAmountA").value = "";
+                document.getElementById("addAmountB").value = "";
+                await refreshAll();
+            } catch (e) {
+                showToast("Error: " + (e.reason || e.message).slice(0, 60), "error");
+            }
+        }
+
+        async function doRemoveLiquidity() {
+            if (!signer) { showToast("Connect wallet first", "error"); return; }
+            const amt = document.getElementById("removeAmount").value;
+            if (!amt || amt <= 0) { showToast("Enter LP amount", "error"); return; }
+            try {
+                const a = ethers.utils.parseEther(amt);
+                showToast("Removing liquidity...", "info");
+                const tx = await dex.removeLiquidity(a);
+                await tx.wait();
+
+                showToast("Removed! TX: " + tx.hash.slice(0, 10) + "...", "success");
+                document.getElementById("removeAmount").value = "";
+                await refreshAll();
+            } catch (e) {
+                showToast("Error: " + (e.reason || e.message).slice(0, 60), "error");
+            }
+        }
+
+        function switchTab(name, el) {
+            document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+            document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+            el.classList.add("active");
+            document.getElementById(name + "Section").classList.add("active");
+        }
+
+        let toastTimer;
+        function showToast(msg, type = "info") {
+            const t = document.getElementById("toast");
+            t.textContent = msg;
+            t.className = "show " + type;
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => t.className = "", 3500);
+        }
+    </script>
+</body>
+
+</html>
